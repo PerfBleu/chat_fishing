@@ -1,10 +1,14 @@
 from hoshino import Service, logger
 from httpx import AsyncClient, Response
 from nonebot import get_bot
+from json import loads
+from os import path
+from pathlib import Path
 
-URL = "http://localhost:8000/chat_fishing"
+with open(Path(path.dirname(__file__)) / "config.json","r" , encoding="utf-8") as f:
+    URL = loads(f.read())["url"]
 
-sv = Service("钓鱼", enable_on_default=True, visible=False)
+sv = Service("钓鱼", enable_on_default=True, visible=True)
 client = AsyncClient()
 bot = get_bot()
 
