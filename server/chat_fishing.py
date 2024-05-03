@@ -11,11 +11,12 @@ from fastapi import BackgroundTasks
 from fastapi.responses import PlainTextResponse
 from httpx import AsyncClient
 from internal.addons.scheduler import scheduler
-from internal.addons.statistics import increment
+# from internal.addons.statistics import increment
 from internal.addons.users import FetchData, UploadData, conn, fetch, upload
 from internal.config import config
 from internal.constants import SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME
 from internal.driver import app
+from sqlalchemy import text
 
 
 @app.get(ROUTER, response_class=PlainTextResponse, tags=[DISPLAY_NAME])
@@ -105,7 +106,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
             s = s[:-1] + "，这是你第一次钓鱼。\n\n可以随时 “结束钓鱼”"
         write_log(state, s)
         await upload(UploadData(event.user_id, password, str(state), DISPLAY_NAME))
-        increment(ROUTER)
+        # increment(ROUTER)
         return s
     elif stop(event) and state["游戏中"]:
         state["游戏中"] = None
@@ -181,7 +182,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
         state["钓鱼图鉴"] = d
         write_log(state, s)
         await upload(UploadData(event.user_id, password, str(state), DISPLAY_NAME))
-        increment(ROUTER)
+        # increment(ROUTER)
         return s
     elif stat(event):
         counts = {i: 0 for i in SAKANA}
@@ -198,7 +199,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
                 del counts[k]
         if not state["开始游戏时间"]:
             s = "你还没有钓过鱼。"
-            increment(ROUTER)
+            # increment(ROUTER)
             return s
         s = f"你于 {state['开始游戏时间']} 开始了第一次钓鱼，"
         fb = state["第一次钓到鱼"]
@@ -247,7 +248,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
             s += (
                 f"你钓到过最大的鱼是{k}，竟长达 {round(v['最大长度记录'] / 10, 1)} mm！"
             )
-        increment(ROUTER)
+        # increment(ROUTER)
         return s
     elif state["游戏中"]:
         if not autofish:
@@ -273,8 +274,8 @@ async def main(event: MessageEvent, *, autofish: bool = False):
         await upload(
             UploadData(event.user_id, password, str(state), DISPLAY_NAME), hot=True
         )
-        if not autofish:
-            increment(ROUTER)
+        # if not autofish:
+            # increment(ROUTER)
         return s
     else:
         return "你没有在钓鱼。"
@@ -420,14 +421,14 @@ async def autofish(background_tasks: BackgroundTasks):
     如果因为故障导致错过了上一次触发，可以使用此路由补偿。
     """
     rows = conn.execute(
-        "SELECT * FROM sqlite_master WHERE type='table' AND name='用户数据'"
+        text("SELECT * FROM sqlite_master WHERE type='table' AND name='用户数据'")
     ).fetchall()
     if not rows:
         return
-    cols = conn.execute("PRAGMA table_info(用户数据)").fetchall()
-    if not DISPLAY_NAME in [col["name"] for col in cols]:
+    cols = conn.execute(text("PRAGMA table_info(用户数据)")).fetchall()
+    if not DISPLAY_NAME in [col for col in cols]:
         return
-    rows = conn.execute(f"SELECT 用户名 FROM 用户数据 WHERE {DISPLAY_NAME} IS NOT NULL")
+    rows = conn.execute(text(f"SELECT 用户名 FROM 用户数据 WHERE {DISPLAY_NAME} IS NOT NULL"))
     for row in rows:
         username = row["用户名"]
         message = MessageEvent(username, "0" * randint(1, 140))
