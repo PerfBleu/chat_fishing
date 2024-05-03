@@ -16,6 +16,7 @@ from functools import wraps
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_scoped_session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
+from .scheduler import scheduler
 
 from sqlalchemy import (
     create_engine,
@@ -39,7 +40,7 @@ def destory():
 atexit.register(destory)
 
 Base = declarative_base()
-
+playing_players = []
 # class Fish_Data(Base):
 #     __tablename__ = 'fish_data'
 #     uid = Column(VARCHAR(20))
@@ -82,31 +83,55 @@ class UploadData:
         self.钓鱼 = state
         self.disp_name = disp_name
 
+with open(Path(os.path.dirname(__file__)).parent.parent / "profiles" / "state_db.json", "r", encoding="utf-8") as f:
+    mem_db = json.loads(f.read())
+for _uid in  mem_db.keys():
+    if mem_db[_uid]["userdata"]["游戏中"]:
+        playing_players.append(_uid)
+
+
+
+@scheduler.scheduled_job("interval", minutes=1)
+def memdb_save():
+    with open(Path(os.path.dirname(__file__)).parent.parent / "profiles" / "state_db.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps(mem_db, ensure_ascii=False))
+
+
 async def fetch(data: FetchData):
     uid = data.用户名
-    pw = data.密码
-    row = conn.execute(
-        text("SELECT 密码 FROM 用户数据 WHERE 用户名=:uid;"),
-        {"uid":uid}).fetchone()
-    user_profile_path = Path(os.path.dirname(__file__)).parent.parent / "profiles" / f"{uid}.json"
-    # if pw == row[0]:
-    if not os.path.exists(user_profile_path):
-        with open(user_profile_path, "w", encoding='utf-8') as f:
-            f.write(json.dumps(default, ensure_ascii=False))
-            return default
+    if uid in mem_db.keys():
+        return mem_db[uid]
     else:
-        with open(user_profile_path, "r", encoding='utf-8') as f:
-            return json.loads(f.read())
+        mem_db[uid] = default
+    
+    # uid = data.用户名
+    # pw = data.密码
+    # row = conn.execute(
+    #     text("SELECT 密码 FROM 用户数据 WHERE 用户名=:uid;"),
+    #     {"uid":uid}).fetchone()
+    # user_profile_path = Path(os.path.dirname(__file__)).parent.parent / "profiles" / f"{uid}.json"
+    # # if pw == row[0]:
+    # if not os.path.exists(user_profile_path):
+    #     with open(user_profile_path, "w", encoding='utf-8') as f:
+    #         f.write(json.dumps(default, ensure_ascii=False))
+    #         return default
+    # else:
+    #     with open(user_profile_path, "r", encoding='utf-8') as f:
+    #         return json.loads(f.read())
 
 async def upload(data: UploadData, hot=True):
     uid = data.用户名
-    pw = data.密码
-    row = conn.execute(
-        text("SELECT 密码 FROM 用户数据 WHERE 用户名=:uid;"),
-        {"uid":uid}).fetchone()
-    user_profile_path = Path(os.path.dirname(__file__)).parent.parent / "profiles" / f"{uid}.json"
-    with open(user_profile_path, "w", encoding='utf-8') as f:
-        f.write(json.dumps({"userdata":data.钓鱼}, ensure_ascii=False))
+    mem_db[uid] = {"userdata":data.钓鱼}
+
+
+    # uid = data.用户名
+    # pw = data.密码
+    # row = conn.execute(
+    #     text("SELECT 密码 FROM 用户数据 WHERE 用户名=:uid;"),
+    #     {"uid":uid}).fetchone()
+    # user_profile_path = Path(os.path.dirname(__file__)).parent.parent / "profiles" / f"{uid}.json"
+    # with open(user_profile_path, "w", encoding='utf-8') as f:
+    #     f.write(json.dumps({"userdata":data.钓鱼}, ensure_ascii=False))
 
 
     # row = conn.execute(

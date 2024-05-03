@@ -12,7 +12,7 @@ from fastapi.responses import PlainTextResponse
 from httpx import AsyncClient
 from internal.addons.scheduler import scheduler
 # from internal.addons.statistics import increment
-from internal.addons.users import FetchData, UploadData, conn, fetch, upload
+from internal.addons.users import FetchData, UploadData, conn, fetch, upload, playing_players
 from internal.config import config
 from internal.constants import SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME
 from internal.driver import app
@@ -93,13 +93,17 @@ async def main(event: MessageEvent, *, autofish: bool = False):
 
     - `event: MessageEvent`：消息事件，包括用户 ID 和消息内容。
     """
+    if start(event):
+        playing_players.append(event.user_id)
+    elif event.user_id not in playing_players:
+        return
+
     # 从数据库获取用户密码和用户数据
     data, password = await fetch_userdata(event)
     # 获取用户的游戏状态
     state = get_state(data)
 
     if start(event) and not state["游戏中"]:
-        print("!")
         state["游戏中"] = strtime()
         state["钓鱼次数"] += 1
         s = "你开始钓鱼了。"
@@ -330,7 +334,6 @@ async def fetch_userdata(event: MessageEvent):
         SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME, {"uid": event.user_id}
     ).fetchone()
     if row:
-        #print(row)
         password = row[1]
         data = FetchData(event.user_id, password, DISPLAY_NAME)
     else:
@@ -408,7 +411,6 @@ async def test(user_id: str = "Lan", target: int = 10):
         if not state["游戏中"]:
             await main(message_1)
         if len(state["钓到的鱼"]) < target:
-            print("=")
             await main(message_0)
         else:
             s = await main(message_2)
