@@ -17,6 +17,7 @@ from internal.config import config
 from internal.constants import SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME
 from internal.driver import app
 from sqlalchemy import text
+import json
 
 
 @app.get(ROUTER, response_class=PlainTextResponse, tags=[DISPLAY_NAME])
@@ -98,6 +99,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
     state = get_state(data)
 
     if start(event) and not state["游戏中"]:
+        print("!")
         state["游戏中"] = strtime()
         state["钓鱼次数"] += 1
         s = "你开始钓鱼了。"
@@ -105,7 +107,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
             state["开始游戏时间"] = strtime()
             s = s[:-1] + "，这是你第一次钓鱼。\n\n可以随时 “结束钓鱼”"
         write_log(state, s)
-        await upload(UploadData(event.user_id, password, str(state), DISPLAY_NAME))
+        await upload(UploadData(event.user_id, password, state, DISPLAY_NAME))
         # increment(ROUTER)
         return s
     elif stop(event) and state["游戏中"]:
@@ -181,7 +183,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
                 d[i] = state["钓鱼图鉴"][i]
         state["钓鱼图鉴"] = d
         write_log(state, s)
-        await upload(UploadData(event.user_id, password, str(state), DISPLAY_NAME))
+        await upload(UploadData(event.user_id, password, state, DISPLAY_NAME))
         # increment(ROUTER)
         return s
     elif stat(event):
@@ -272,7 +274,7 @@ async def main(event: MessageEvent, *, autofish: bool = False):
             # 下一次鱼咬钩的概率上升
             state["钓鱼力"] += 0.001
         await upload(
-            UploadData(event.user_id, password, str(state), DISPLAY_NAME), hot=True
+            UploadData(event.user_id, password, state, DISPLAY_NAME), hot=True
         )
         # if not autofish:
             # increment(ROUTER)
@@ -282,7 +284,8 @@ async def main(event: MessageEvent, *, autofish: bool = False):
 
 
 def get_state(data: dict):
-    d = eval(str(data)) or {}
+    # d = eval(str(data)) or {}
+    d = data or {}
     # 总是用模板初始化用户数据
     state = {
         "游戏中": None,
@@ -324,12 +327,14 @@ async def fetch_userdata(event: MessageEvent):
     data = FetchData(event.user_id, namespace=DISPLAY_NAME)
     await fetch(data)
     row = conn.execute(
-        SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME, (event.user_id,)
+        SQL_INTERNAL_ADDONS_USERS_GET_USER_BY_USERNAME, {"uid": event.user_id}
     ).fetchone()
     if row:
-        password = row["密码"]
+        #print(row)
+        password = row[1]
         data = FetchData(event.user_id, password, DISPLAY_NAME)
-
+    else:
+        password = "12345"
     data = (await fetch(data))["userdata"]
     return data, password
 
@@ -403,9 +408,12 @@ async def test(user_id: str = "Lan", target: int = 10):
         if not state["游戏中"]:
             await main(message_1)
         if len(state["钓到的鱼"]) < target:
+            print("=")
             await main(message_0)
         else:
-            return await main(message_2)
+            s = await main(message_2)
+            print(s)
+            return s
 
 
 ROUTER_AUTOFISH = ROUTER + "/autofish"

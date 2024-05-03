@@ -18,7 +18,8 @@ async def event_filter(group_id: int):
     #     return True
     return True
 
-@sv.on_fullmatch(("开始钓鱼", "结束钓鱼", "停止钓鱼", "钓鱼记录", "钓鱼统计"))
+# @sv.on_fullmatch(("开始钓鱼", "结束钓鱼", "停止钓鱼", "钓鱼记录", "钓鱼统计"))
+@sv.on_message('group')
 async def fish_handle(bot, ev):
     text = ev.message.extract_plain_text()
     if not text:
